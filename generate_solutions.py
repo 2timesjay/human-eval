@@ -93,8 +93,8 @@ async def generate_one_completion(prompt, semaphore) -> CodeSolution:
     async with semaphore:
         try:
             solution = await client.chat.completions.create(
-                model="gpt-4o",
-                # model="gpt-3.5-turbo",
+                # model="gpt-4o",
+                model="gpt-3.5-turbo",
                 messages=[{"role": "user", "content": prompt + filler + prompt}],
                 max_tokens=1000,
                 n=1,

@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field, ValidationError, field_validator
 from typing_extensions import Annotated
 from tenacity import AsyncRetrying, stop_after_attempt, wait_exponential
 import instructor
-from instructor.exceptions import InstructorRetryException, IncompleteOutputException
+from instructor.exceptions import InstructorRetryException
 import os
 
 api_key=os.environ["OPENAI_API_KEY"]
@@ -16,9 +16,6 @@ client = instructor.apatch(AsyncOpenAI(api_key=api_key), mode=instructor.Mode.TO
 
 class CodeSolution(BaseModel):
     explanation: str = Field(..., description="Explanation of how the solution works.")
-    additional_tests: str = Field(..., description="additional test cases - inputs and expected outputs")
-    draft_code: str = Field(..., description="A first pass at the problem")
-    reflection: str = Field(..., description="Review of the draft code")
     code: str = Field(..., description="The code solution to the problem. A runnable python script.")
 
     @field_validator("code")
@@ -38,10 +35,29 @@ semaphore = asyncio.Semaphore(10)
 filler = """
 # Programming and Problem-Solving Guidance
 
+When approaching any programming task, it's crucial to break down the problem into smaller, manageable steps. Start by clearly understanding the requirements and desired outcome. Then, outline a high-level strategy before diving into the code.
+
+Consider the following principles:
+
+1. **Simplicity**: Aim for clear, readable code. Avoid over-engineering solutions when simpler approaches suffice.
+
+2. **Modularity**: Break your code into logical functions or modules. This improves readability and makes your code easier to test and maintain.
+
+3. **Efficiency**: While premature optimization is often discouraged, be mindful of the efficiency of your algorithms, especially for larger datasets.
+
+4. **Error Handling**: Anticipate potential issues and handle exceptions gracefully. Your code should be robust against unexpected inputs.
+
+5. **Testing**: Regularly test your code with various inputs, including edge cases. This helps catch bugs early and ensures your solution works as intended.
+
+When faced with a challenging problem:
+
 - Take a step back and reframe the problem if you're stuck.
 - Consider multiple approaches before settling on one.
-- Consider additional test cases to better understand the problem
-- Consider whether your solution would work on the test cases
+- Use pseudocode to outline your logic before writing actual code.
+- Don't hesitate to break complex operations into smaller, helper functions.
+- Leverage appropriate data structures and built-in functions to simplify your code.
+
+Remember, there's often more than one correct way to solve a problem. Focus on writing clear, correct code first, then optimize if necessary. Regular practice with diverse problems will enhance your problem-solving skills and expand your programming toolkit.
 
 Here's an example problem:
 
@@ -59,24 +75,6 @@ def filter_by_substring(strings: List[str], substring: str) -> List[str]:
 
 Explanation:
 The `filter_by_substring` function takes a list of strings and a substring as input. It filters the list to only include strings that contain the given substring. The function iterates through each string in the input list and checks if the substring is present in the string. If the substring is found, the string is added to the result list. Finally, the function returns the filtered list of strings.
-    
-More example test cases:
-filter_by_substring(['abc', 'bacd', 'cde', 'array'], 'ba') == ['bacd']
-filter_by_substring(['lorem', 'ipsum', 'dolor'], 'o') == ['lorem', 'dolor']
-filter_by_substring(['1234', '1255710', '81056710'], '80') == []
-
-Draft Code:
-from typing import List
-
-def filter_by_substring(strings: List[str], substring: str) -> List[str]:
-    filtered_strings = [s for s in strings if substring in s]
-    return filtered_strings
-
-Reflection:
-In this case the draft code is adequate for the task. Reviewing it, the test cases should all pass
-filter_by_substring(['abc', 'bacd', 'cde', 'array'], 'ba') == ['bacd']
-filter_by_substring(['lorem', 'ipsum', 'dolor'], 'o') == ['lorem', 'dolor']
-filter_by_substring(['1234', '1255710', '81056710'], '80') == []
 
 Proposed Solution:
 from typing import List
@@ -109,15 +107,6 @@ async def generate_one_completion(prompt, semaphore) -> CodeSolution:
             print(f"Generated solution for task")
             return solution
         except InstructorRetryException as e:
-            print(e)
-            return CodeSolution(
-                explanation="Failed to generate valid code", 
-                additional_tests="", 
-                draft_code="", 
-                reflection="", 
-                code=""
-            )
-        except IncompleteOutputException as e:
             print(e)
             return CodeSolution(explanation="Failed to generate valid code", code="")
 

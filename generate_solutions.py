@@ -19,11 +19,10 @@ client = instructor.apatch(AsyncOpenAI(api_key=api_key))
 class CodeSolution(BaseModel):
     extra_tests: str = Field(
         ..., 
-        description="Additional test inputs and expected outputs, of the form def check(candidate): assert candidate(<input>) == <output> ..."
+        description="Additional test inputs and expected outputs"
     )
     explanation: str = Field(..., description="Explanation of how the solution works.")
     code: str = Field(..., description="The code solution to the problem. A runnable python script.")
-    solution_name: str = Field(..., description="The name of the solution function.")
 
     @field_validator("code")
     @classmethod
@@ -80,25 +79,22 @@ def filter_by_substring(strings: List[str], substring: str) -> List[str]:
     ['abc', 'bacd', 'array']
     \"\"\"
 
-Test function:
-def check(candidate):
-    assert candidate([], 'a') == []
-    assert candidate(['abc', 'bacd', 'cde', 'array'], 'a') == ['abc', 'bacd', 'array']
-    assert candidate(['aaaaaaazzz', 'pizza', 'kazam'], 'za') == ['pizza', 'kazam']
-    assert candidate(['flux', 'flummox', 'flake'], 'fl') == ['flux', 'flummox', 'flake']
+extra_tests:
+assert filter_by_substring([], 'a') == []
+assert filter_by_substring(['abc', 'bacd', 'cde', 'array'], 'a') == ['abc', 'bacd', 'array']
+assert filter_by_substring(['aaaaaaazzz', 'pizza', 'kazam'], 'za') == ['pizza', 'kazam']
+assert filter_by_substring(['flux', 'flummox', 'flake'], 'fl') == ['flux', 'flummox', 'flake']
 
-Explanation:
+explanation:
 The `filter_by_substring` function takes a list of strings and a substring as input. It filters the list to only include strings that contain the given substring. The function iterates through each string in the input list and checks if the substring is present in the string. If the substring is found, the string is added to the result list. Finally, the function returns the filtered list of strings.
 
-Proposed Solution:
+solution:
 from typing import List
 
 def filter_by_substring(strings: List[str], substring: str) -> List[str]:
     filtered_strings = [s for s in strings if substring in s]
     return filtered_strings
 
-Solution Name: # must be exact name of solution function, used for testing
-filter_by_substring
     
 
 Now, let's restate the problem I originally asked.
@@ -117,7 +113,7 @@ async def generate_one_completion(prompt, semaphore) -> CodeSolution:
                 max_tokens=1000,
                 n=1,
                 stop=None,
-                temperature=0.0,
+                temperature=0.2,
                 response_model=CodeSolution,
                 max_retries=AsyncRetrying(
                     stop=stop_after_attempt(3),
@@ -134,59 +130,15 @@ async def generate_one_completion(prompt, semaphore) -> CodeSolution:
                 code="",
                 solution_name="",
             )
-        for i in range(2,4):
-            extra_tests = solution.extra_tests
-            try:
-                ast.parse(extra_tests)
-                pseudo_problem = {
-                    "task_id": None,
-                    "entry_point": solution.solution_name,
-                    "prompt": prompt,
-                    "test": extra_tests
-                }
-                try:
-                    # dict(
-                    #     task_id=problem["task_id"],
-                    #     passed=result[0] == "passed",
-                    #     result=result[0],
-                    #     completion_id=completion_id,
-                    # )
-                    execution = check_correctness(pseudo_problem, solution.code, 3.0, None)
-                    if execution["passed"]:
-                        print("Passed self-generate tests")
-                        return solution
-                except Exception as e:
-                    print(f"Exception while checking correctness: {e}")
-                    return solution
-            except SyntaxError as e:
-                print(e)
-            try:
-                solution = await client.chat.completions.create(
-                    # model="gpt-4o",
-                    model="gpt-3.5-turbo",
-                    messages=[{"role": "user", "content": prompt + filler + prompt + "Previous solution attempt: " + solution.code}],
-                    max_tokens=2000,
-                    n=1,
-                    stop=None,
-                    temperature=0.2,
-                    response_model=CodeSolution,
-                    max_retries=AsyncRetrying(
-                        stop=stop_after_attempt(3),
-                        wait=wait_exponential(multiplier=1, min=2, max=16),
-                    ),
-                )
-                print(f"Regenerated solution for task, attempt {i}")
-                solutions.append(solution)
-            except InstructorRetryException as e:
-                print(e)
+            solutions.append(solution)
         return solution
             
 
 async def main():
-    num_samples_per_task = 1
-    problem_count = 10
+    num_samples_per_task = 1 # Bug in non-1 samples_per_task values
+    problem_count = 40
     problems_sample = random.sample(list(problems.keys()), problem_count)
-    # problems_sample = list(problems.keys())
+    problems_sample = list(problems.keys())
     tasks = []
     samples = []
     for task_id in problems_sample:

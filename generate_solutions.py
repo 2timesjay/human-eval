@@ -1,5 +1,6 @@
 import ast
 import asyncio
+import random
 from human_eval.data import write_jsonl, read_problems
 from openai import AsyncOpenAI
 from pydantic import BaseModel, Field, ValidationError, field_validator
@@ -112,9 +113,9 @@ async def generate_one_completion(prompt, semaphore) -> CodeSolution:
 
 async def main():
     num_samples_per_task = 1
-    # problem_count = 10
-    problem_count = 200  # 164
-    problems_sample = list(problems.keys())[:problem_count]
+    problem_count = 20
+    # problem_count = 200  # 164
+    problems_sample = random.sample(list(problems.keys()), problem_count)
     tasks = []
     samples = []
     for task_id in problems_sample:

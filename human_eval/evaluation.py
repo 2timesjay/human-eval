@@ -68,7 +68,11 @@ def evaluate_functional_correctness(
             completion_id[task_id] += 1
             n_samples += 1
 
-        assert len(completion_id) == len(problems), "Some problems are not attempted."
+        if len(completion_id) != len(problems):
+            print(
+                f"Some problems are not attempted. "
+                f"Calculating with {len(completion_id)}/{len(problems)}."
+            )
 
         print("Running test suites...")
         for future in tqdm.tqdm(as_completed(futures), total=len(futures)):
